@@ -3875,7 +3875,7 @@ This is a simple dialog rendered by using a macro and a call block.
     unsubscribe_all_success="You have successfully unsubscribed from all email communications.",
     subscription_update_success="You have successfully updated your email preferences.",
     subheader_text="If this is not your email address, please ignore this page since the email associated with this page was most likely forwarded to you." %}
-  <!doctype html>
+  <!DOCTYPE html>
   <html lang="en">
     <head>
       {% block head %}
@@ -4358,6 +4358,13 @@ exports[`formats ternary.html correctly 1`] = `
 {{ cond1 ? cond2 ? yes2 : no2 : no1 }}
 
 {{ macro(does ? this : parse) }}
+
+`;
+
+exports[`formats test_placeholder.html correctly 1`] = `
+{{ post.post_body|regex_replace("{%\\s*module_block.*?end_module_block\\s*%}", "", "si")|striptags|truncatehtml(250, "...", false) }}
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+{{ post.post_body|regex_replace("{%s*module_block.*?end_module_blocks*%}", "", "si")|striptags|truncatehtml(250, "...", false) }}
 
 `;
 

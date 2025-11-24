@@ -59,7 +59,25 @@ const tokenize = (input: string): string => {
   const HUBL_TAG_REGEX_WITH_LEAD = withLead(HUBL_TAG_REGEX);
   const COMMENT_REGEX_WITH_LEAD = withLead(COMMENT_REGEX);
   const VARIABLE_REGEX_WITH_LEAD = withLead(VARIABLE_REGEX);
-  // Replace tags in style block
+
+  // Tokenize strings that contain HubL tags or variables, but only outside HTML tags
+  const parts = input.split(/(<[^>]*>)/);
+  for (let i = 0; i < parts.length; i++) {
+    if (!parts[i].startsWith('<') || !parts[i].endsWith('>')) {
+      // This is text content, tokenize strings
+      const strings = parts[i].match(/"([^"\\]|\\.)*"|'([^'\\]|\\.)*'/g);
+      if (strings) {
+        strings.forEach((str) => {
+          if (str.includes('{%') || str.includes('{{')) {
+            const placeholderToken = Token.placeholder(tokenIndex++);
+            tokenMap.set(placeholderToken, str);
+            parts[i] = parts[i].replace(str, placeholderToken);
+          }
+        });
+      }
+    }
+  }
+  input = parts.join('');
   const nestedStyleTags = input.match(STYLE_BLOCK_WITH_HUBL_REGEX);
   if (nestedStyleTags) {
     nestedStyleTags.forEach((tag) => {
@@ -137,15 +155,6 @@ const tokenize = (input: string): string => {
     });
   }
 
-  const matches = input.match(HUBL_TAG_REGEX);
-  if (matches) {
-    matches.forEach((match) => {
-      const placeholderToken = Token.placeholder(tokenIndex++);
-      tokenMap.set(placeholderToken, match.replace(LINE_BREAK_REGEX, " "));
-      input = input.replace(match, placeholderToken);
-    });
-  }
-
   const expressionMatches = input.match(VARIABLE_REGEX);
   if (expressionMatches) {
     expressionMatches.forEach((match) => {
@@ -154,14 +163,36 @@ const tokenize = (input: string): string => {
       input = input.replace(match, placeholderToken);
     });
   }
+
+  const matches = input.match(HUBL_TAG_REGEX);
+  if (matches) {
+    matches.forEach((match) => {
+      const placeholderToken = Token.placeholder(tokenIndex++);
+      tokenMap.set(placeholderToken, match.replace(LINE_BREAK_REGEX, " "));
+      input = input.replace(match, placeholderToken);
+    });
+  }
   tokenIndex = 0;
   return input;
 };
 
 const unTokenize = (input: string) => {
-  tokenMap.forEach((value, key) => {
-    input = input.replaceAll(key, value);
-  });
+  const unTokenizeString = (str: string): string => {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      tokenMap.forEach((value, key) => {
+        const newStr = str.replaceAll(key, value);
+        if (newStr !== str) {
+          changed = true;
+          str = newStr;
+        }
+      });
+    }
+    return str;
+  };
+
+  input = unTokenizeString(input);
   tokenMap.clear();
   return input;
 };
@@ -179,7 +210,7 @@ const parsers: Plugin["parsers"] = {
   hubl: {
     astFormat: "hubl-ast",
     parse,
-    preprocess: (text: string) => {
+    preprocess: (text: string, options: any) => {
       let updatedText: string = text.trim();
       // Swap HubL tags for placeholders
       updatedText = tokenize(updatedText);
@@ -187,6 +218,8 @@ const parsers: Plugin["parsers"] = {
       updatedText = synchronizedPrettier.format(updatedText, {
         parser: "html",
         trailingComma: "es5",
+        printWidth: options.printWidth || 280,
+
       });
       // Find <pre> tags and add {% preserve %} wrapper
       // to tell the HubL parser to preserve formatting

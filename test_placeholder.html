@@ -1,0 +1,1 @@
+{{ post.post_body|regex_replace("{%\s*module_block.*?end_module_block\s*%}", "", "si")|striptags|truncatehtml(250, "...", false) }}

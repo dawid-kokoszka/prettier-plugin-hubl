@@ -303,7 +303,7 @@ function printHubl(node) {
         return "null";
       }
       if (typeof node.value === "string") {
-        return util.makeString(node.value, '"');
+        return `"${node.value.replace(/"/g, '\\"').replace(/\\/g, '\\\\')}"`;
       }
       return `${node.value}`;
     case "Comment":
